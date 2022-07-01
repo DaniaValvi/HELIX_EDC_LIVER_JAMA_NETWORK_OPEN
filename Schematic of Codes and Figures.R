@@ -1,4 +1,10 @@
-d <- as.data.frame(read.csv("nafld_ocs_cov3.csv")) # Read the data
+library(ggplot2)
+library(grid)
+library(BWQS)
+library(bkmr)
+library(gtsummary)
+
+d <- as.data.frame(read.csv(".....csv")) # Read the data
 d_set1 <- d[d$imp==1,]  # choose one of the imputed dataset
 
 # create liver injury outcome
@@ -7,7 +13,12 @@ d_set1_comp <- d_set1[!(d_set1$helixid %in% unique(c(d_set1$helixid[is.na(d_set1
 d_set1_comp$liver_injury <- rep(NA_character_, dim(d_set1_comp)[1])
 d_set1_comp$liver_injury <- ifelse((d_set1_comp$alt > quantile(d_set1_comp$alt, 0.9)) | (d_set1_comp$ast > quantile(d_set1_comp$ast, 0.9)) | (d_set1_comp$ggt > quantile(d_set1_comp$ggt, 0.9)), "1", '0')
 d_set1_comp$liver_injury <- factor(d_set1_comp$liver_injury, levels = c("0","1"))
+
+# Convert child age from days to years
+
 d_set1_comp$hs_child_age_days_none <- d_set1_comp$hs_child_age_days_none/365
+
+# Function to convert exposures to quartiles 
 
 convert.to.quantile <- function(x){q = 4; as.integer(cut(x, quantile(x, probs=0:q/q), include.lowest=TRUE))}
 
@@ -21,7 +32,6 @@ tbl_summary(summary_data, by = liver_injury, statistic = list(all_continuous() ~
   italicize_labels() %>%
   modify_header(label = "**Variable**") %>%  add_overall() %>% add_stat_label() %>%
   bold_p(t = 0.05)
-
 
 ################################################################################
 
@@ -104,14 +114,13 @@ p <- P + theme_bw()
 
 ################################################################################
 
-
 # Bayesian Weighted Quantile Sum regression
 
 ## Schematic of the main code
 
 bwqs(liver_injury ~ h_mbmi_none + h_age_none  + h_parity_none + h_edumc_none + h_cohort + hs_child_age_days_none +e3_sex_none, 
      mix_name = c(Set of exposures), data = prenatal_exposures, q = 4,  chains = 4, 
-     c_int = c(0.025,0.975), family = "binomial")
+     c_int = c(0.025,0.975), family = "binomial") ## For continuous outcome, the family needs to be changed
 
 ## Schematic of the Figure
 
@@ -269,7 +278,7 @@ liver_bwqs <- ggpubr::ggarrange(fp,pm,
 Z <- prenatal_exposures[,c(Group of chemicals)]
 y <- outcome
 X <- set of covariates
-fitkm_chemicals <- kmbayes(y = y, Z = as.data.frame((Z)), X = as.data.frame((X)), iter = 2000, family = "binomial",verbose = T, varsel = TRUE)
+fitkm_chemicals <- kmbayes(y = y, Z = as.data.frame((Z)), X = as.data.frame((X)), iter = 2000, family = "binomial",verbose = T, varsel = TRUE) ## For continuous outcome, the family needs to be changed
 
 pred.resp.univar <- PredictorResponseUnivar(fit = fitkm_chemicals)
 
@@ -425,12 +434,10 @@ pm <- pm + theme(plot.title=element_text(size=14,face="bold"),
                  legend.position="bottom") + scale_x_discrete(breaks=prenatal_exposures_bar$Chemicals,labels=xnames)
 
 
-
-
 # Generalized Linear Mixed Effect Regression (Main exposures are turned to quartiles)
 
 glmer(liver_injury ~  LOG TRANSFORMED EXPOSURE + h_mbmi_none + h_age_none + h_parity_none + h_edumc_none + hs_child_age_days_none + h_cohort
-      +e3_sex_none +  (1|h_cohort), data = prenatal_exposures, family = "binomial")
+      +e3_sex_none +  (1|h_cohort), data = prenatal_exposures, family = "binomial") ## For continuous outcome, the family needs to be changed
 
 
 ## Figure
